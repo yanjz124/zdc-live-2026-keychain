@@ -168,7 +168,7 @@ def draw(text, cid, rating, out_path, volumes=None):
     sh.leader((hx + HOLE_D / 2 * S * 0.7, hy + HOLE_D / 2 * S * 0.7), (hx + 26, hy + 12),
               f"Ø{HOLE_D} THRU\nFITS AN 8 mm SPLIT RING")
     sh.leader((hx + OCULUS * S * 0.95, hy + OCULUS * S * 0.3), (hx + 26, hy - 12),
-              f"Ø{OCULUS * 2:.1f} WHITE RING\n0.6 DEEP BOTH FACES")
+              f"Ø{OCULUS * 2:.1f} WHITE RING\n{INLAY} DEEP BOTH FACES")
 
     # ---------------- RIGHT SIDE VIEW (third angle) ----------------
     sx = fx + W * S + 26
@@ -181,7 +181,7 @@ def draw(text, cid, rating, out_path, volumes=None):
     for yy in (hy + HOLE_D / 2 * S, hy - HOLE_D / 2 * S):  # hidden hole edges
         sh.line([sx, sx + t], [yy, yy], lw=0.5, color="#bbb", ls=(0, (3, 1.5)))
     sh.line([sx - 3, sx + t + 3], [hy, hy], lw=0.3, color="#555", ls=(0, (8, 2, 1, 2)))
-    sh.hdim(sx, sx + t, fy, fy, fy + 7, "4.0")
+    sh.hdim(sx, sx + t, fy, fy, fy + 7, f"{THICK}")
     sh.text(sx - 3, fy + 2.5, "FRONT", size=5, rot=90, ha="right", va="top", color="#555")
     sh.text(sx + t + 3, fy + 2.5, "BACK", size=5, rot=90, ha="left", va="top", color="#555")
     sh.title(sx + t / 2, fy - H * S - 12, "RIGHT SIDE", "SCALE 2:1")
@@ -244,13 +244,13 @@ def draw(text, cid, rating, out_path, volumes=None):
     sh.vdim(dyy(h0), dyy(h1), dz(0), dz(0), dz(0) - 6, f"Ø{HOLE_D}")
     # part y grows downward, so y_lo is the top edge of the detail on the sheet
     top, bot = dyy(y_lo), dyy(y_hi)
-    sh.hdim(dz(0), dz(INLAY), top, top, top + 6, "0.6")
-    sh.hdim(dz(THICK - INLAY), dz(THICK), top, top, top + 6, "0.6")
-    sh.hdim(dz(0), dz(THICK), bot, bot, bot - 7, "4.0", above=False)
+    sh.hdim(dz(0), dz(INLAY), top, top, top + 6, f"{INLAY}")
+    sh.hdim(dz(THICK - INLAY), dz(THICK), top, top, top + 6, f"{INLAY}")
+    sh.hdim(dz(0), dz(THICK), bot, bot, bot - 7, f"{THICK}", above=False)
     sh.vdim(dyy(h0), top, dz(THICK), dz(THICK), dz(THICK) + 7, f"{h0 - y_min:.1f} ABOVE HOLE", left=False)
     sh.text(dz(INLAY / 2) - 3, top + 12, "FRONT INLAY", size=5.5, color="#555")
     sh.text(dz(THICK - INLAY / 2) + 3, top + 12, "BACK INLAY", size=5.5, color="#555")
-    sh.text(dz(THICK / 2), dyy((h1 + y_hi) / 2), "CORE\n2.8", size=5.5, color="#ddd")
+    sh.text(dz(THICK / 2), dyy((h1 + y_hi) / 2), f"CORE\n{THICK - 2 * INLAY:.2f}", size=5.5, color="#ddd")
     sh.title(dz(THICK / 2), bot - 17, "DETAIL B", "HOLE AND LAYER STACK, SCALE 5:1")
 
     # ---------------- REFERENCE RENDER ----------------
@@ -286,7 +286,7 @@ def draw(text, cid, rating, out_path, volumes=None):
         if volumes:
             sh.text(tx + cols[3], yy, f"{volumes[c]:.0f} mm³", size=6.2, ha="left")
             sh.text(tx + cols[4], yy, f"{volumes[c] * PLA_DENSITY:.2f} g", size=6.2, ha="left")
-    sh.text(tx, ty - 5 * 7 - 6, "Masses are the part only. Purge for color changes adds about 15 g per plate.",
+    sh.text(tx, ty - 5 * 7 - 6, "Masses are the part only. Purge adds about 14 g per plate of 10-11, about 1.4 g each.",
             size=5.5, ha="left", color="#555")
 
     # ---------------- NOTES ----------------
@@ -294,10 +294,10 @@ def draw(text, cid, rating, out_path, volumes=None):
     notes = [
         "NOTES",
         "1. Material: PLA (Bambu PLA Basic), 4 colors via AMS. Bambu Lab P2S, 0.2 mm nozzle.",
-        "2. Print front face down on the plate. Layer height 0.1 mm. Iron the top (back) surface.",
-        "3. Color inlays are flush, 0.6 mm (6 layers) deep on each face. Core 2.8 mm.",
+        "2. Print front face down on the plate. Layer height 0.14 mm. Iron the top (back) surface.",
+        f"3. Color inlays are flush, {INLAY} mm (3 layers) deep on each face. Core {THICK - 2 * INLAY:.2f} mm.",
         "4. Ribbon is red through its full thickness. All other core material is black.",
-        "5. Minimum feature 0.55 mm. Minimum text cap height 1.8 mm.",
+        "5. Minimum feature 0.55 mm. Minimum text cap height 1.9 mm (thinnest stroke 0.6 mm).",
         "6. Back ribbon is one free text field per attendee; rating and CID optional. See attendees.csv.",
         "7. Dimensions in mm. General tolerance ±0.2 unless noted.",
     ]

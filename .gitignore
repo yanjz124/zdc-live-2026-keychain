@@ -1,5 +1,6 @@
-__pycache__/
+*.local.csv
 *.pyc
+__pycache__/
 out/
-result.json
 plate_*.gcode
+result.json

@@ -15,7 +15,7 @@ import keychain
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PLA = {"black": "#1b1b1b", "white": "#f2f0ea", "gray": "#8e9089", "red": "#c11a2b"}
-THICK = 4.0
+THICK = keychain.THICK
 RING_D, RING_WIRE = 8.0, 1.2   # the split ring from the keychain kit
 
 

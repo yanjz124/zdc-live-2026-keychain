@@ -30,8 +30,8 @@ from shapely.ops import unary_union
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ---- build parameters (mm) ----
-THICK = 4.0          # total thickness
-INLAY = 0.6          # color inlay depth on each face
+THICK = 4.2          # total thickness
+INLAY = 0.42         # color inlay depth on each face (3 layers at 0.14 mm)
 HOLE_D = 3.4         # key-ring hole diameter (fits a doubled 1.2 mm split-ring wire)
 NAME_SIZE = 4.3      # ribbon text size when it fits
 NAME_MAX_W = 38.0    # widest the ribbon text may run before it shrinks
@@ -234,8 +234,14 @@ def back_items(fonts, text, cid, rating):
         it.append((WHITE, fonts.text(rating, CX - bw / 2, 21.7, CX + bw / 2, 3.3, ls=1)))
     if cid:
         it.append((WHITE, fonts.text(cid, 3, 27.2, 47, 4.0, ls=0, mono=True)))
-    it.append((GRAY, fonts.text("VIRTUAL", 3, 35.4, 47, 3.2, ls=1.6)))
-    it.append((GRAY, fonts.text("WASHINGTON ARTCC", 3, 39.4, 47, 3.2, ls=0.2)))
+    if cid or rating:
+        it.append((GRAY, fonts.text("VIRTUAL", 3, 35.4, 47, 3.2, ls=1.6)))
+        it.append((GRAY, fonts.text("WASHINGTON ARTCC", 3, 39.4, 47, 3.2, ls=0.2)))
+    else:  # name only: fill the space the badge and CID would have used
+        it.append((GRAY, fonts.text("VIRTUAL", 3, 27.6, 47, 4.0, ls=2.0)))
+        it.append((GRAY, fonts.text("WASHINGTON", 3, 32.6, 47, 4.0, ls=0.4)))
+        it.append((GRAY, fonts.text("ARTCC", 3, 37.6, 47, 4.0, ls=2.0)))
+        it.append((RED, rect(17, 43.2, 33, 43.8, 0.3)))
     if text:
         size = NAME_SIZE
         while fonts.width(text, size, 0.3) > NAME_MAX_W and size > NAME_MIN_SIZE:
@@ -399,7 +405,7 @@ _ID = "1 0 0 0 1 0 0 0 1 0 0 0"
 _ID4 = "1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"
 
 
-def project_settings(colors):
+def project_settings(colors, tower=None):
     """P2S 0.2 mm nozzle project settings, expanded from one filament to one per color."""
     import json
     tpl = json.load(open(TEMPLATE, encoding="utf-8"))
@@ -412,74 +418,89 @@ def project_settings(colors):
     ps["filament_multi_colour"] = [FILAMENT_HEX[c] for c in colors]
     ps["filament_map"] = ["1"] * n
     ps["flush_volumes_matrix"] = [str(0 if a == b else FLUSH_INTO[b]) for a in colors for b in colors]
-    ps["layer_height"] = "0.1"
+    ps["layer_height"] = "0.14"
+    ps["initial_layer_print_height"] = "0.14"
+    ps["wall_loops"] = "3"
     ps["ironing_type"] = "top"
-    ps["wipe_tower_x"], ps["wipe_tower_y"] = ["175"], ["150"]  # clear of the keychain, well inside the plate
+    ps["flush_into_infill"] = "1"            # purge into infill where it can
+    ps["wipe_tower_no_sparse_layers"] = "1"  # no tower on layers without a color change
+    tx, ty = tower or (175, 150)   # clear of the keychains, well inside the plate
+    ps["wipe_tower_x"], ps["wipe_tower_y"] = [str(tx)], [str(ty)]
     return json.dumps(ps, indent=4)
 
 
-def write_3mf(solids, path, title):
-    """Bambu Studio project: one object whose parts are the color solids, each on its own filament."""
+def write_3mf(entries, path, tower=None):
+    """Bambu Studio project. entries: [(title, solids, (x, y), rot90)] - one object per keychain,
+    each with its color parts on their own filament slot."""
     import json
     import uuid
     import zipfile
     from xml.sax.saxutils import quoteattr
 
     tpl_version = json.load(open(TEMPLATE, encoding="utf-8"))["settings"]["version"]
-    colors = [c for c in COLORS if c in solids]
-    parts = [(i + 1, c, solids[c]) for i, c in enumerate(colors)]
-    obj_id = len(parts) + 1
+    colors = [c for c in COLORS if any(c in sol for _, sol, _, _ in entries)]
     u = lambda: str(uuid.uuid4())
 
-    # meshes are stored centered on the object origin, as Bambu Studio writes them
-    lo = np.min([s.bounding_box()[:3] for _, _, s in parts], axis=0)
-    hi = np.max([s.bounding_box()[3:] for _, _, s in parts], axis=0)
-    ctr = (lo + hi) / 2
+    meshes, objects, items, obj_cfgs, instances, assembles = [], [], [], [], [], []
+    mesh_id = 1
+    first_obj_id = 1 + sum(len([c for c in COLORS if c in sol]) for _, sol, _, _ in entries)
+    for n, (title, solids, (px, py), rot) in enumerate(entries):
+        parts = [(mesh_id + i, c, solids[c]) for i, c in enumerate(c for c in COLORS if c in solids)]
+        mesh_id += len(parts)
+        lo = np.min([s.bounding_box()[:3] for _, _, s in parts], axis=0)
+        hi = np.max([s.bounding_box()[3:] for _, _, s in parts], axis=0)
+        ctr = (lo + hi) / 2                  # meshes are stored centered, as Bambu Studio writes them
+        faces = {}
+        for pid, c, s in parts:
+            m = s.to_mesh()
+            v = np.asarray(m.vert_properties)[:, :3] - ctr
+            t = np.asarray(m.tri_verts)
+            faces[pid] = len(t)
+            verts = "\n".join('     <vertex x="%.5f" y="%.5f" z="%.5f"/>' % tuple(p) for p in v)
+            tris = "\n".join('     <triangle v1="%d" v2="%d" v3="%d"/>' % tuple(f) for f in t)
+            meshes.append('  <object id="%d" p:UUID="%s" type="model">\n   <mesh>\n    <vertices>\n%s\n'
+                          '    </vertices>\n    <triangles>\n%s\n    </triangles>\n   </mesh>\n  </object>'
+                          % (pid, u(), verts, tris))
+        obj_id = first_obj_id + n            # object ids continue after the mesh ids
+        comps = "\n".join('    <component p:path="/3D/Objects/object_1.model" objectid="%d" p:UUID="%s" '
+                          'transform="%s"/>' % (pid, u(), _ID) for pid, _, _ in parts)
+        objects.append('  <object id="%d" p:UUID="%s" type="model">\n   <components>\n%s\n   </components>\n'
+                       '  </object>' % (obj_id, u(), comps))
+        rotm = "0 1 0 -1 0 0 0 0 1" if rot else "1 0 0 0 1 0 0 0 1"
+        place = "%s %.4f %.4f %.4f" % (rotm, px, py, ctr[2])
+        items.append('  <item objectid="%d" p:UUID="%s" transform="%s" printable="1"/>' % (obj_id, u(), place))
+        part_cfg = "".join(
+            '    <part id="%d" subtype="normal_part">\n      <metadata key="name" value=%s/>\n'
+            '      <metadata key="matrix" value="%s"/>\n      <metadata key="extruder" value="%d"/>\n'
+            '      <mesh_stat face_count="%d" edges_fixed="0" degenerate_facets="0" facets_removed="0" '
+            'facets_reversed="0" backwards_edges="0"/>\n    </part>\n'
+            % (pid, quoteattr(c), _ID4, FILAMENT_SLOT[c], faces[pid]) for pid, c, _ in parts)
+        obj_cfgs.append('  <object id="%d">\n    <metadata key="name" value=%s/>\n'
+                        '    <metadata key="extruder" value="1"/>\n    <metadata face_count="%d"/>\n%s  </object>\n'
+                        % (obj_id, quoteattr(title), sum(faces.values()), part_cfg))
+        instances.append('    <model_instance>\n      <metadata key="object_id" value="%d"/>\n'
+                         '      <metadata key="instance_id" value="0"/>\n'
+                         '      <metadata key="identify_id" value="%d"/>\n    </model_instance>\n' % (obj_id, 100 + n))
+        assembles.append('   <assemble_item object_id="%d" instance_id="0" transform="%s" offset="0 0 0" />\n'
+                         % (obj_id, place))
 
-    meshes, faces = [], {}
-    for pid, c, s in parts:
-        m = s.to_mesh()
-        v = np.asarray(m.vert_properties)[:, :3] - ctr
-        t = np.asarray(m.tri_verts)
-        faces[pid] = len(t)
-        verts = "\n".join(f'     <vertex x="{x:.5f}" y="{y:.5f}" z="{z:.5f}"/>' for x, y, z in v)
-        tris = "\n".join(f'     <triangle v1="{a}" v2="{b}" v3="{cc}"/>' for a, b, cc in t)
-        meshes.append(f'  <object id="{pid}" p:UUID="{u()}" type="model">\n   <mesh>\n    <vertices>\n{verts}\n    </vertices>\n'
-                      f'    <triangles>\n{tris}\n    </triangles>\n   </mesh>\n  </object>')
-    objects_model = (f'<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" {_NS}>\n'
-                     f' <metadata name="BambuStudio:3mfVersion">1</metadata>\n <resources>\n' + "\n".join(meshes) +
-                     '\n </resources>\n <build/>\n</model>\n')
+    objects_model = ('<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" %s>\n'
+                     ' <metadata name="BambuStudio:3mfVersion">1</metadata>\n <resources>\n%s\n </resources>\n'
+                     ' <build/>\n</model>\n' % (_NS, "\n".join(meshes)))
+    title = entries[0][0] if len(entries) == 1 else "%d keychains" % len(entries)
+    main_model = ('<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" %s>\n'
+                  ' <metadata name="Application">BambuStudio-%s</metadata>\n'
+                  ' <metadata name="BambuStudio:3mfVersion">1</metadata>\n'
+                  ' <metadata name="Title">%s</metadata>\n <resources>\n%s\n </resources>\n'
+                  ' <build p:UUID="%s">\n%s\n </build>\n</model>\n'
+                  % (_NS, tpl_version, title, "\n".join(objects), u(), "\n".join(items)))
+    settings = ('<?xml version="1.0" encoding="UTF-8"?>\n<config>\n%s'
+                '  <plate>\n    <metadata key="plater_id" value="1"/>\n    <metadata key="plater_name" value=""/>\n'
+                '    <metadata key="locked" value="false"/>\n%s  </plate>\n  <assemble>\n%s  </assemble>\n</config>\n'
+                % ("".join(obj_cfgs), "".join(instances), "".join(assembles)))
 
-    place = f"1 0 0 0 1 0 0 0 1 {PLATE_CENTER[0]:.4f} {PLATE_CENTER[1]:.4f} {ctr[2]:.4f}"
-    comps = "\n".join(f'    <component p:path="/3D/Objects/object_1.model" objectid="{pid}" p:UUID="{u()}" transform="{_ID}"/>'
-                      for pid, _, _ in parts)
-    main_model = (f'<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="en-US" {_NS}>\n'
-                  f' <metadata name="Application">BambuStudio-{tpl_version}</metadata>\n'
-                  f' <metadata name="BambuStudio:3mfVersion">1</metadata>\n'
-                  f' <metadata name="Title">{title}</metadata>\n'
-                  f' <resources>\n  <object id="{obj_id}" p:UUID="{u()}" type="model">\n   <components>\n{comps}\n   </components>\n  </object>\n </resources>\n'
-                  f' <build p:UUID="{u()}">\n  <item objectid="{obj_id}" p:UUID="{u()}" transform="{place}" printable="1"/>\n </build>\n</model>\n')
-
-    part_cfg = "".join(
-        f'    <part id="{pid}" subtype="normal_part">\n'
-        f'      <metadata key="name" value={quoteattr(c)}/>\n'
-        f'      <metadata key="matrix" value="{_ID4}"/>\n'
-        f'      <metadata key="extruder" value="{FILAMENT_SLOT[c]}"/>\n'
-        f'      <mesh_stat face_count="{faces[pid]}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>\n'
-        f'    </part>\n' for pid, c, _ in parts)
-    settings = (f'<?xml version="1.0" encoding="UTF-8"?>\n<config>\n  <object id="{obj_id}">\n'
-                f'    <metadata key="name" value={quoteattr(title)}/>\n    <metadata key="extruder" value="1"/>\n'
-                f'    <metadata face_count="{sum(faces.values())}"/>\n{part_cfg}  </object>\n'
-                f'  <plate>\n    <metadata key="plater_id" value="1"/>\n    <metadata key="plater_name" value=""/>\n'
-                f'    <metadata key="locked" value="false"/>\n'
-                f'    <model_instance>\n      <metadata key="object_id" value="{obj_id}"/>\n'
-                f'      <metadata key="instance_id" value="0"/>\n      <metadata key="identify_id" value="{100 + obj_id}"/>\n'
-                f'    </model_instance>\n  </plate>\n  <assemble>\n'
-                f'   <assemble_item object_id="{obj_id}" instance_id="0" transform="{place}" offset="0 0 0" />\n'
-                f'  </assemble>\n</config>\n')
-
-    rel = 'http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel'
-    rels_ns = 'http://schemas.openxmlformats.org/package/2006/relationships'
+    rel = "http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"
+    rels_ns = "http://schemas.openxmlformats.org/package/2006/relationships"
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml",
                    '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n'
@@ -487,14 +508,43 @@ def write_3mf(solids, path, title):
                    ' <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>\n'
                    ' <Default Extension="png" ContentType="image/png"/>\n'
                    ' <Default Extension="gcode" ContentType="text/x.gcode"/>\n</Types>\n')
-        z.writestr("_rels/.rels", f'<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="{rels_ns}">\n'
-                                  f' <Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="{rel}"/>\n</Relationships>\n')
-        z.writestr("3D/_rels/3dmodel.model.rels", f'<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="{rels_ns}">\n'
-                                                  f' <Relationship Target="/3D/Objects/object_1.model" Id="rel-1" Type="{rel}"/>\n</Relationships>\n')
+        z.writestr("_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="%s">\n'
+                                  ' <Relationship Target="/3D/3dmodel.model" Id="rel-1" Type="%s"/>\n</Relationships>\n'
+                                  % (rels_ns, rel))
+        z.writestr("3D/_rels/3dmodel.model.rels",
+                   '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="%s">\n'
+                   ' <Relationship Target="/3D/Objects/object_1.model" Id="rel-1" Type="%s"/>\n</Relationships>\n'
+                   % (rels_ns, rel))
         z.writestr("3D/3dmodel.model", main_model)
         z.writestr("3D/Objects/object_1.model", objects_model)
-        z.writestr("Metadata/project_settings.config", project_settings(colors))
+        z.writestr("Metadata/project_settings.config", project_settings(colors, tower))
         z.writestr("Metadata/model_settings.config", settings)
+
+
+def solids_for(fonts, text, cid, rating):
+    """One watertight solid per color, placed with the bottom edge at Y = 0 and the front at z = 0."""
+    text, rating = text.strip(), rating.strip().upper()
+    main, _ = ribbon_parts()
+    outline = unary_union([body_parts(), main]).difference(circle(*HOLE, HOLE_D / 2))
+    front = compose(front_items(fonts), outline)
+    back = compose(back_items(fonts, text, cid, rating), outline)
+    core = {c: Polygon() for c in COLORS}
+    core[RED] = main.intersection(outline)
+    core[BLACK] = outline.difference(main)
+    maxy = outline.bounds[3]
+
+    def place(g, mirror):
+        return affinity.translate(to_model(g, mirror), 0, maxy)
+
+    solids = {}
+    for c in COLORS:
+        pieces = [extrude(place(front[c], True), 0, INLAY),
+                  extrude(place(core[c], False), INLAY, THICK - INLAY),
+                  extrude(place(back[c], False), THICK - INLAY, THICK)]
+        pieces = [p for p in pieces if p is not None and not p.is_empty()]
+        if pieces:
+            solids[c] = m3d.Manifold.batch_boolean(pieces, m3d.OpType.Add)
+    return solids, front, back, outline
 
 
 def build(fonts, text, cid, rating, out_dir, preview=False):
@@ -530,7 +580,8 @@ def build(fonts, text, cid, rating, out_dir, preview=False):
         solids[c] = solid
         total += solid.volume()
         report.append((c, solid.volume(), solid.genus(), os.path.basename(path)))
-    write_3mf(solids, os.path.join(out_dir, f"{slug}.3mf"), " ".join(x for x in (text, cid) if x))
+    title = " ".join(x for x in (text, cid) if x)
+    write_3mf([(title, solids, PLATE_CENTER, 0)], os.path.join(out_dir, f"{slug}.3mf"))
     if preview:
         render_preview(front, back, os.path.join(out_dir, f"{slug}_preview.png"), outline.bounds)
     return slug, report, total, outline

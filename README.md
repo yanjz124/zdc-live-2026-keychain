@@ -39,17 +39,18 @@ all around it.
 
 ## Printing
 
-- **Size**: 49.2 mm wide, 4.0 mm thick, height per the table above.
+- **Size**: 49.2 mm wide, 4.2 mm thick, height per the table above.
 - **Colors**: black (body), white (windows, hole ring, text), gray (lines, shading), red (ribbon and
   badge). The ribbon is red through its full thickness; the rest of the core is black.
-- **Inlays**: each face carries flush color 0.6 mm (6 layers) deep, so both faces stay flat and the
+- **Inlays**: each face carries flush color 0.42 mm (3 layers) deep, so both faces stay flat and the
   top can be ironed.
 - **Orientation**: front face down on the plate, back face up. The front is mirrored in the model so
   it reads correctly once flipped.
-- **Slicing**: 0.1 mm layers, ironing on the top surface, prime tower on. The included `.3mf` already
-  sets these.
-- **Waste**: one keychain needs 64 filament changes. A plate of keychains uses the same number of
-  changes as a single one, so print them in batches.
+- **Slicing**: 0.14 mm layers, 3 walls, ironing on the top surface, purge tower on, purge into infill
+  where it fits. The included `.3mf` already sets these.
+- **Waste**: a plate needs 42 filament changes whether it holds one keychain or eleven, so always
+  print in batches. Measured on a plate of 11: 60.5 g total, 46 g in the parts and 14 g purged, i.e.
+  about 1.4 g of purge per keychain instead of about 22 g when printed one at a time. 12.3 h per plate.
 
 Load the `.3mf` straight into Bambu Studio. If you prefer the STLs, select all four at once and
 answer **yes** when asked to load them as a single object with multiple parts, then assign a filament
@@ -60,6 +61,7 @@ per part.
 ```bash
 pip install shapely manifold3d numpy fonttools matplotlib
 python keychain.py                                   # every row in attendees.csv, all three tops
+python plates.py --csv attendees.csv --top orb       # arrange them onto print plates
 python keychain.py --top orb --preview               # one top, plus a PNG of both faces
 python keychain.py --text "Carson B. (CB)" --cid 1652726 --rating SUP --top orb
 ```
@@ -76,6 +78,19 @@ Carson B. (CB),1652726,SUP
 - `cid`, `rating` — optional; leave either blank and it is left off that keychain.
 
 Output lands in `out/<text>_<cid>_<top>/` as a `.3mf` plus four `.stl` files.
+
+### Plates
+
+`plates.py` packs the keychains onto 256 x 256 mm plates (11 per plate, rotated 90 degrees, with the
+purge tower above them) and writes one `.3mf` per plate into `out/plates/`. Add a `group` column to
+the CSV and each group starts its own plate, which is how a confirmed list prints before a tentative
+one:
+
+```csv
+text,cid,rating,group
+CARSON BERGET,,,going
+ROWAN A YOUNG,,,tentative
+```
 
 ### Drawings and renders
 
@@ -97,6 +112,7 @@ writes the renders in `docs/`.
 | `drawing.py` | The engineering drawing |
 | `render.py` | The 3D renders |
 | `attendees.csv` | The table of keychains to make |
+| `plates.py` | Packs keychains onto print plates |
 | `bambu/p2s_0.2_template.json` | P2S 0.2 mm nozzle print settings the 3MF is built from |
 | `fonts/` | B612 and B612 Mono (SIL Open Font License, see `fonts/OFL.txt`) |
 | `docs/` | Drawings and renders |
