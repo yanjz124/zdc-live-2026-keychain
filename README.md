@@ -44,10 +44,15 @@ all around it.
   badge). The ribbon is red through its full thickness; the rest of the core is black.
 - **Inlays**: each face carries flush color 0.42 mm (3 layers) deep, so both faces stay flat and the
   top can be ironed.
-- **Orientation**: front face down on the plate, back face up. The front is mirrored in the model so
-  it reads correctly once flipped.
-- **Slicing**: 0.14 mm layers, 3 walls, ironing on the top surface, purge tower on, purge into infill
-  where it fits. The included `.3mf` already sets these.
+- **Orientation**: BACK face down on the plate, front face up and ironed. Layer 1 is nothing but
+  small colour islands, and the back has about half as many as the front (41 vs 78), so it is the
+  safer face to start on. The back is mirrored in the model so it reads correctly once flipped.
+- **Nothing loose on layer 1**: any colour island narrower than 0.3 mm is merged into the colour
+  around it, a 4 mm brim is added, and the first layer runs at 25 mm/s. Without this the hair-thin
+  slivers (down to 0.1 mm) lift, catch the nozzle and turn the print into spaghetti after a layer
+  or two.
+- **Slicing**: 0.14 mm layers, 3 walls, ironing on the top (front) surface, purge tower on, purge
+  into infill where it fits. The included `.3mf` already sets these.
 - **Waste**: a plate needs 42 filament changes whether it holds one keychain or eleven, so always
   print in batches. Measured on a plate of 11: 60.5 g total, 46 g in the parts and 14 g purged, i.e.
   about 1.4 g of purge per keychain instead of about 22 g when printed one at a time. 12.3 h per plate.

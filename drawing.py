@@ -182,8 +182,8 @@ def draw(text, cid, rating, out_path, volumes=None):
         sh.line([sx, sx + t], [yy, yy], lw=0.5, color="#bbb", ls=(0, (3, 1.5)))
     sh.line([sx - 3, sx + t + 3], [hy, hy], lw=0.3, color="#555", ls=(0, (8, 2, 1, 2)))
     sh.hdim(sx, sx + t, fy, fy, fy + 7, f"{THICK}")
-    sh.text(sx - 3, fy + 2.5, "FRONT", size=5, rot=90, ha="right", va="top", color="#555")
-    sh.text(sx + t + 3, fy + 2.5, "BACK", size=5, rot=90, ha="left", va="top", color="#555")
+    sh.text(sx - 3, fy + 2.5, "BACK", size=5, rot=90, ha="right", va="top", color="#555")
+    sh.text(sx + t + 3, fy + 2.5, "FRONT", size=5, rot=90, ha="left", va="top", color="#555")
     sh.title(sx + t / 2, fy - H * S - 12, "RIGHT SIDE", "SCALE 2:1")
 
     # ---------------- BACK VIEW ----------------
@@ -248,8 +248,8 @@ def draw(text, cid, rating, out_path, volumes=None):
     sh.hdim(dz(THICK - INLAY), dz(THICK), top, top, top + 6, f"{INLAY}")
     sh.hdim(dz(0), dz(THICK), bot, bot, bot - 7, f"{THICK}", above=False)
     sh.vdim(dyy(h0), top, dz(THICK), dz(THICK), dz(THICK) + 7, f"{h0 - y_min:.1f} ABOVE HOLE", left=False)
-    sh.text(dz(INLAY / 2) - 3, top + 12, "FRONT INLAY", size=5.5, color="#555")
-    sh.text(dz(THICK - INLAY / 2) + 3, top + 12, "BACK INLAY", size=5.5, color="#555")
+    sh.text(dz(INLAY / 2) - 3, top + 12, "BACK INLAY", size=5.5, color="#555")
+    sh.text(dz(THICK - INLAY / 2) + 3, top + 12, "FRONT INLAY", size=5.5, color="#555")
     sh.text(dz(THICK / 2), dyy((h1 + y_hi) / 2), f"CORE\n{THICK - 2 * INLAY:.2f}", size=5.5, color="#ddd")
     sh.title(dz(THICK / 2), bot - 17, "DETAIL B", "HOLE AND LAYER STACK, SCALE 5:1")
 
@@ -294,12 +294,14 @@ def draw(text, cid, rating, out_path, volumes=None):
     notes = [
         "NOTES",
         "1. Material: PLA (Bambu PLA Basic), 4 colors via AMS. Bambu Lab P2S, 0.2 mm nozzle.",
-        "2. Print front face down on the plate. Layer height 0.14 mm. Iron the top (back) surface.",
+        "2. Print BACK face down (fewer small islands on layer 1). Layer height 0.14 mm. Iron the top (front).",
         f"3. Color inlays are flush, {INLAY} mm (3 layers) deep on each face. Core {THICK - 2 * INLAY:.2f} mm.",
         "4. Ribbon is red through its full thickness. All other core material is black.",
         "5. Minimum feature 0.55 mm. Minimum text cap height 1.9 mm (thinnest stroke 0.6 mm).",
         "6. Back ribbon is one free text field per attendee; rating and CID optional. See attendees.csv.",
         "7. Dimensions in mm. General tolerance ±0.2 unless noted.",
+        "8. No colour island is narrower than 0.3 mm; thinner slivers are merged into the colour "
+        "around them so layer 1 has nothing loose. Brim 4 mm, first layer 25 mm/s.",
     ]
     for i, n in enumerate(notes):
         sh.text(nx, ny - i * 5.2, n, size=6.3 if i else 7.5, ha="left", weight="bold" if i == 0 else "normal")

@@ -342,6 +342,35 @@ def compose(items, outline):
     return {c: clean(g.intersection(outline)) for c, g in layers.items()}
 
 
+MIN_FEATURE = 0.3    # a 0.2 mm nozzle lays ~0.25 mm; islands thinner than this come loose
+
+
+def merge_slivers(layers, min_w=MIN_FEATURE):
+    """Give any color region narrower than min_w to the neighbouring color.
+
+    A 0.2 mm nozzle cannot lay a reliable bead below about 0.4 mm, and such slivers come loose on
+    the face printed against the plate and end up dragged around by the nozzle.
+    """
+    r = min_w / 2
+    kept = {c: list(_polys(g)) for c, g in layers.items()}
+    loose = []
+    for c, polys in kept.items():
+        good = [p for p in polys if not p.buffer(-r).buffer(r).is_empty and p.area >= 0.15]
+        loose += [(p, c) for p in polys if p not in good]
+        kept[c] = good
+    for p, c in loose:                # hand each loose island to whichever color surrounds it most
+        ring = p.buffer(0.3).difference(p)
+        best, best_len = None, 0.0
+        for d, polys in kept.items():
+            if d == c:
+                continue
+            a = sum(ring.intersection(q).area for q in polys)
+            if a > best_len:
+                best, best_len = d, a
+        kept.setdefault(best or BLACK, []).append(p)
+    return {c: unary_union(polys) if polys else Polygon() for c, polys in kept.items()}
+
+
 def clean(g, min_area=0.02):
     polys = [p for p in _polys(g) if p.area >= min_area]
     return MultiPolygon(polys) if polys else Polygon()
@@ -424,6 +453,10 @@ def project_settings(colors, tower=None):
     ps["ironing_type"] = "top"
     ps["flush_into_infill"] = "1"            # purge into infill where it can
     ps["wipe_tower_no_sparse_layers"] = "1"  # no tower on layers without a color change
+    # layers 1-2 are nothing but small colour islands, so hold them down and lay them slowly
+    ps["brim_type"], ps["brim_width"], ps["brim_object_gap"] = "outer_only", "4", "0.1"
+    ps["initial_layer_speed"] = ["25"] * len(ps["initial_layer_speed"])
+    ps["initial_layer_infill_speed"] = ["35"] * len(ps["initial_layer_infill_speed"])
     tx, ty = tower or (175, 150)   # clear of the keychains, well inside the plate
     ps["wipe_tower_x"], ps["wipe_tower_y"] = [str(tx)], [str(ty)]
     return json.dumps(ps, indent=4)
@@ -522,12 +555,16 @@ def write_3mf(entries, path, tower=None):
 
 
 def solids_for(fonts, text, cid, rating):
-    """One watertight solid per color, placed with the bottom edge at Y = 0 and the front at z = 0."""
+    """One watertight solid per color, bottom edge at Y = 0.
+
+    The BACK face prints against the plate: it has about half as many separate color islands as the
+    front, which is what layer 1 has to make stick. The front then ends up on top, where it is ironed.
+    """
     text, rating = text.strip(), rating.strip().upper()
     main, _ = ribbon_parts()
     outline = unary_union([body_parts(), main]).difference(circle(*HOLE, HOLE_D / 2))
-    front = compose(front_items(fonts), outline)
-    back = compose(back_items(fonts, text, cid, rating), outline)
+    front = merge_slivers(compose(front_items(fonts), outline))
+    back = merge_slivers(compose(back_items(fonts, text, cid, rating), outline))
     core = {c: Polygon() for c in COLORS}
     core[RED] = main.intersection(outline)
     core[BLACK] = outline.difference(main)
@@ -538,9 +575,9 @@ def solids_for(fonts, text, cid, rating):
 
     solids = {}
     for c in COLORS:
-        pieces = [extrude(place(front[c], True), 0, INLAY),
+        pieces = [extrude(place(back[c], True), 0, INLAY),            # back face down, mirrored
                   extrude(place(core[c], False), INLAY, THICK - INLAY),
-                  extrude(place(back[c], False), THICK - INLAY, THICK)]
+                  extrude(place(front[c], False), THICK - INLAY, THICK)]
         pieces = [p for p in pieces if p is not None and not p.is_empty()]
         if pieces:
             solids[c] = m3d.Manifold.batch_boolean(pieces, m3d.OpType.Add)
@@ -549,35 +586,14 @@ def solids_for(fonts, text, cid, rating):
 
 def build(fonts, text, cid, rating, out_dir, preview=False):
     text, rating = text.strip(), rating.strip().upper()
-    main, _ = ribbon_parts()
-    outline = unary_union([body_parts(), main]).difference(circle(*HOLE, HOLE_D / 2))
-    front = compose(front_items(fonts), outline)
-    back = compose(back_items(fonts, text, cid, rating), outline)
-    core = {c: Polygon() for c in COLORS}
-    core[RED] = main.intersection(outline)
-    core[BLACK] = outline.difference(main)
-
-    maxy = outline.bounds[3]  # shift so the bottom edge sits at Y = 0
-
-    def place(g, mirror):
-        return affinity.translate(to_model(g, mirror), 0, maxy)
-
+    solids, front, back, outline = solids_for(fonts, text, cid, rating)
     slug = re.sub(r"[^a-z0-9]+", "_", f"{text}_{cid}_{TOP}".lower()).strip("_") or "keychain"
     out_dir = os.path.join(out_dir, slug)
     os.makedirs(out_dir, exist_ok=True)
-    report, solids = [], {}
-    total = 0.0
-    for c in COLORS:
-        pieces = [extrude(place(front[c], True), 0, INLAY),
-                  extrude(place(core[c], False), INLAY, THICK - INLAY),
-                  extrude(place(back[c], False), THICK - INLAY, THICK)]
-        pieces = [p for p in pieces if p is not None and not p.is_empty()]
-        if not pieces:
-            continue
-        solid = m3d.Manifold.batch_boolean(pieces, m3d.OpType.Add)
+    report, total = [], 0.0
+    for c, solid in solids.items():
         path = os.path.join(out_dir, f"{slug}_{c}.stl")
         write_stl(solid, path)
-        solids[c] = solid
         total += solid.volume()
         report.append((c, solid.volume(), solid.genus(), os.path.basename(path)))
     title = " ".join(x for x in (text, cid) if x)

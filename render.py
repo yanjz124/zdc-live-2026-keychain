@@ -85,16 +85,17 @@ def main():
     lo = min(m.bounds[2] for m in parts.values())
     ctr = (25.0, (y_max + lo) / 2, 2.0)
 
-    front = {c: m.copy() for c, m in parts.items()}
-    # turn it over (180 degrees about Y) so the front faces the +z cameras
-    for m in front.values():
+    # the model prints back-face-down, so +z already shows the front; flip a copy to see the back
+    front = parts
+    back = {c: m.copy() for c, m in parts.items()}
+    for m in back.values():
         m.points[:, 0] = 50.0 - m.points[:, 0]
         m.points[:, 2] = THICK - m.points[:, 2]
     up = (0, 1, 0)
     dist = 150 + (y_max - lo) * 0.9
     shoot(front, os.path.join(out, f"render_front_hero_{top}.png"),
           [orbit(ctr, dist, -28, 14), ctr, up], ring=ring, zoom=1.05)
-    shoot(parts, os.path.join(out, f"render_back_hero_{top}.png"),
+    shoot(back, os.path.join(out, f"render_back_hero_{top}.png"),
           [orbit(ctr, dist, 30, 10), ctr, up], ring=ring, zoom=1.05)
     if "--all" in sys.argv:
         shoot(front, os.path.join(out, f"render_front_flat_{top}.png"),
