@@ -17,6 +17,7 @@ from shapely import affinity
 from shapely.geometry import LineString
 
 from keychain import (BLACK, WHITE, GRAY, RED, COLORS, CX, HOLE_D, OCULUS, THICK, INLAY, HERE,
+                      INLAY_BOTTOM, INLAY_TOP, LAYER, LAYER_0,
                       FILAMENT_SLOT, Fonts, body_parts, ribbon_parts, circle, compose, front_items,
                       back_items, _polys, unary_union)
 
@@ -168,7 +169,7 @@ def draw(text, cid, rating, out_path, volumes=None):
     sh.leader((hx + HOLE_D / 2 * S * 0.7, hy + HOLE_D / 2 * S * 0.7), (hx + 26, hy + 12),
               f"Ø{HOLE_D} THRU\nFITS AN 8 mm SPLIT RING")
     sh.leader((hx + OCULUS * S * 0.95, hy + OCULUS * S * 0.3), (hx + 26, hy - 12),
-              f"Ø{OCULUS * 2:.1f} WHITE RING\n{INLAY} DEEP BOTH FACES")
+              f"Ø{OCULUS * 2:.1f} WHITE RING\nINLAID BOTH FACES")
 
     # ---------------- RIGHT SIDE VIEW (third angle) ----------------
     sx = fx + W * S + 26
@@ -181,7 +182,7 @@ def draw(text, cid, rating, out_path, volumes=None):
     for yy in (hy + HOLE_D / 2 * S, hy - HOLE_D / 2 * S):  # hidden hole edges
         sh.line([sx, sx + t], [yy, yy], lw=0.5, color="#bbb", ls=(0, (3, 1.5)))
     sh.line([sx - 3, sx + t + 3], [hy, hy], lw=0.3, color="#555", ls=(0, (8, 2, 1, 2)))
-    sh.hdim(sx, sx + t, fy, fy, fy + 7, f"{THICK}")
+    sh.hdim(sx, sx + t, fy, fy, fy + 7, f"{THICK:.2f}")
     sh.text(sx - 3, fy + 2.5, "BACK", size=5, rot=90, ha="right", va="top", color="#555")
     sh.text(sx + t + 3, fy + 2.5, "FRONT", size=5, rot=90, ha="left", va="top", color="#555")
     sh.title(sx + t / 2, fy - H * S - 12, "RIGHT SIDE", "SCALE 2:1")
@@ -207,9 +208,9 @@ def draw(text, cid, rating, out_path, volumes=None):
             for (a, b) in lst:
                 ax.add_patch(Rectangle((ax0 + z0 * S, fy - (b - y_min) * S), (z1 - z0) * S, (b - a) * S,
                                        fc=FILL[c], ec="none", zorder=2))
-    band_rects(segs["front"], 0, INLAY)
-    band_rects(core_red, INLAY, THICK - INLAY)
-    band_rects(segs["back"], THICK - INLAY, THICK)
+    band_rects(segs["back"], 0, INLAY_BOTTOM)          # back face prints against the plate
+    band_rects(core_red, INLAY_BOTTOM, THICK - INLAY_TOP)
+    band_rects(segs["front"], THICK - INLAY_TOP, THICK)
     # cut-face outline per solid run along the section line
     ln = outline.intersection(LineString([(CX, -5), (CX, 65)]))
     for g in getattr(ln, "geoms", [ln]):
@@ -232,9 +233,9 @@ def draw(text, cid, rating, out_path, volumes=None):
                 a2, b2 = max(a, y_lo), min(b, y_hi)
                 if b2 > a2:
                     ax.add_patch(Rectangle((dz(z0), dyy(b2)), (z1 - z0) * D, (b2 - a2) * D, fc=FILL[c], ec="none", zorder=2))
-    detail_bands(segs["front"], 0, INLAY)
-    detail_bands(core_red, INLAY, THICK - INLAY)
-    detail_bands(segs["back"], THICK - INLAY, THICK)
+    detail_bands(segs["back"], 0, INLAY_BOTTOM)
+    detail_bands(core_red, INLAY_BOTTOM, THICK - INLAY_TOP)
+    detail_bands(segs["front"], THICK - INLAY_TOP, THICK)
     h0, h1 = HOLE[1] - HOLE_D / 2, HOLE[1] + HOLE_D / 2
     for (a, b) in ((y_lo, h0), (h1, y_hi)):
         ax.add_patch(Rectangle((dz(0), dyy(b)), THICK * D, (b - a) * D, fill=False, ec=INK, lw=0.9, zorder=5))
@@ -244,13 +245,13 @@ def draw(text, cid, rating, out_path, volumes=None):
     sh.vdim(dyy(h0), dyy(h1), dz(0), dz(0), dz(0) - 6, f"Ø{HOLE_D}")
     # part y grows downward, so y_lo is the top edge of the detail on the sheet
     top, bot = dyy(y_lo), dyy(y_hi)
-    sh.hdim(dz(0), dz(INLAY), top, top, top + 6, f"{INLAY}")
-    sh.hdim(dz(THICK - INLAY), dz(THICK), top, top, top + 6, f"{INLAY}")
-    sh.hdim(dz(0), dz(THICK), bot, bot, bot - 7, f"{THICK}", above=False)
+    sh.hdim(dz(0), dz(INLAY_BOTTOM), top, top, top + 6, f"{INLAY_BOTTOM:.2f}")
+    sh.hdim(dz(THICK - INLAY_TOP), dz(THICK), top, top, top + 6, f"{INLAY_TOP:.2f}")
+    sh.hdim(dz(0), dz(THICK), bot, bot, bot - 7, f"{THICK:.2f}", above=False)
     sh.vdim(dyy(h0), top, dz(THICK), dz(THICK), dz(THICK) + 7, f"{h0 - y_min:.1f} ABOVE HOLE", left=False)
     sh.text(dz(INLAY / 2) - 3, top + 12, "BACK INLAY", size=5.5, color="#555")
     sh.text(dz(THICK - INLAY / 2) + 3, top + 12, "FRONT INLAY", size=5.5, color="#555")
-    sh.text(dz(THICK / 2), dyy((h1 + y_hi) / 2), f"CORE\n{THICK - 2 * INLAY:.2f}", size=5.5, color="#ddd")
+    sh.text(dz(THICK / 2), dyy((h1 + y_hi) / 2), f"CORE\n{THICK - INLAY_BOTTOM - INLAY_TOP:.2f}", size=5.5, color="#ddd")
     sh.title(dz(THICK / 2), bot - 17, "DETAIL B", "HOLE AND LAYER STACK, SCALE 5:1")
 
     # ---------------- REFERENCE RENDER ----------------
@@ -294,8 +295,9 @@ def draw(text, cid, rating, out_path, volumes=None):
     notes = [
         "NOTES",
         "1. Material: PLA (Bambu PLA Basic), 4 colors via AMS. Bambu Lab P2S, 0.2 mm nozzle.",
-        "2. Print BACK face down (fewer small islands on layer 1). Layer height 0.14 mm. Iron the top (front).",
-        f"3. Color inlays are flush, {INLAY} mm (3 layers) deep on each face. Core {THICK - 2 * INLAY:.2f} mm.",
+        f"2. Print BACK face down (fewer small islands on layer 1). First layer {LAYER_0} mm, then {LAYER} mm. Iron the top (front).",
+        f"3. Flush colour inlays, 3 layers each face: {INLAY_BOTTOM:.2f} mm back, {INLAY_TOP:.2f} mm front. "
+        f"Core {THICK - INLAY_BOTTOM - INLAY_TOP:.2f} mm.",
         "4. Ribbon is red through its full thickness. All other core material is black.",
         "5. Minimum feature 0.55 mm. Minimum text cap height 1.9 mm (thinnest stroke 0.6 mm).",
         "6. Back ribbon is one free text field per attendee; rating and CID optional. See attendees.csv.",

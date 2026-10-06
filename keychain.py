@@ -30,8 +30,13 @@ from shapely.ops import unary_union
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ---- build parameters (mm) ----
-THICK = 4.2          # total thickness
-INLAY = 0.42         # color inlay depth on each face (3 layers at 0.14 mm)
+THICK = 0.10 + 29 * 0.14   # 4.16 mm: a whole number of layers
+# Layer plan: first layer 0.10 mm (crisper small features where it matters most), then 0.14 mm.
+# The inlay depths are whole numbers of layers so the colour boundaries land on layer boundaries.
+LAYER_0, LAYER = 0.10, 0.14
+INLAY_BOTTOM = LAYER_0 + 2 * LAYER   # 0.38: the back face, against the plate
+INLAY_TOP = 3 * LAYER                # 0.42: the front face, ironed
+INLAY = INLAY_TOP                    # what the drawing quotes
 HOLE_D = 3.4         # key-ring hole diameter (fits a doubled 1.2 mm split-ring wire)
 NAME_SIZE = 4.3      # ribbon text size when it fits
 NAME_MAX_W = 38.0    # widest the ribbon text may run before it shrinks
@@ -447,8 +452,8 @@ def project_settings(colors, tower=None):
     ps["filament_multi_colour"] = [FILAMENT_HEX[c] for c in colors]
     ps["filament_map"] = ["1"] * n
     ps["flush_volumes_matrix"] = [str(0 if a == b else FLUSH_INTO[b]) for a in colors for b in colors]
-    ps["layer_height"] = "0.14"
-    ps["initial_layer_print_height"] = "0.14"
+    ps["layer_height"] = str(LAYER)
+    ps["initial_layer_print_height"] = str(LAYER_0)
     ps["wall_loops"] = "3"
     ps["ironing_type"] = "top"
     ps["flush_into_infill"] = "1"            # purge into infill where it can
@@ -578,9 +583,9 @@ def solids_for(fonts, text, cid, rating):
 
     solids = {}
     for c in COLORS:
-        pieces = [extrude(place(back[c], True), 0, INLAY),            # back face down, mirrored
-                  extrude(place(core[c], False), INLAY, THICK - INLAY),
-                  extrude(place(front[c], False), THICK - INLAY, THICK)]
+        pieces = [extrude(place(back[c], True), 0, INLAY_BOTTOM),     # back face down, mirrored
+                  extrude(place(core[c], False), INLAY_BOTTOM, THICK - INLAY_TOP),
+                  extrude(place(front[c], False), THICK - INLAY_TOP, THICK)]
         pieces = [p for p in pieces if p is not None and not p.is_empty()]
         if pieces:
             solids[c] = m3d.Manifold.batch_boolean(pieces, m3d.OpType.Add)

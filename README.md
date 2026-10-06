@@ -39,11 +39,11 @@ all around it.
 
 ## Printing
 
-- **Size**: 49.2 mm wide, 4.2 mm thick, height per the table above.
+- **Size**: 49.2 mm wide, 4.16 mm thick (30 layers), height per the table above.
 - **Colors**: black (body), white (windows, hole ring, text), gray (lines, shading), red (ribbon and
   badge). The ribbon is red through its full thickness; the rest of the core is black.
-- **Inlays**: each face carries flush color 0.42 mm (3 layers) deep, so both faces stay flat and the
-  top can be ironed.
+- **Inlays**: 3 layers of flush color on each face, 0.38 mm on the back and 0.42 mm on the front, so
+  both faces stay flat and the top can be ironed.
 - **Orientation**: BACK face down on the plate, front face up and ironed. Layer 1 is nothing but
   small colour islands, and the back has about half as many as the front (41 vs 78), so it is the
   safer face to start on. The back is mirrored in the model so it reads correctly once flipped.
@@ -54,8 +54,11 @@ all around it.
     takes a 0.63 mm letter stroke down to 0.33 mm, thinner than one bead, and the text prints
     malformed. With it off, islands ending under 0.5 mm go from 73% to 9%;
   - one wall on layer 1, a 4 mm brim, and 25 mm/s.
-- **Slicing**: 0.14 mm layers, 3 walls, ironing on the top (front) surface, purge tower on, purge
-  into infill where it fits. The included `.3mf` already sets these.
+- **Slicing**: 0.10 mm first layer then 0.14 mm, 3 walls, ironing on the top (front) surface, purge
+  tower on, purge into infill where it fits. The included `.3mf` already sets these. 0.14 mm is the
+  most a 0.2 mm nozzle should do and it keeps the colour boundaries to 3 layers a side; printing the
+  whole part at 0.10 mm costs 1.6 h and 5 g more purge per plate for no gain, because each face then
+  needs 4 colour layers instead of 3.
 - **Waste**: a plate needs 42 filament changes whether it holds one keychain or eleven, so always
   print in batches. Measured on a plate of 11: 60.5 g total, 46 g in the parts and 14 g purged, i.e.
   about 1.4 g of purge per keychain instead of about 22 g when printed one at a time. 12.3 h per plate.
