@@ -457,6 +457,9 @@ def project_settings(colors, tower=None):
     ps["brim_type"], ps["brim_width"], ps["brim_object_gap"] = "outer_only", "4", "0.1"
     ps["initial_layer_speed"] = ["25"] * len(ps["initial_layer_speed"])
     ps["initial_layer_infill_speed"] = ["35"] * len(ps["initial_layer_infill_speed"])
+    # the profile shaves 0.15 mm off every island on layer 1, which eats letter strokes
+    ps["elefant_foot_compensation"] = "0"
+    ps["only_one_wall_first_layer"] = "1"   # one clean bead per thin stroke, not two overlapping
     tx, ty = tower or (175, 150)   # clear of the keychains, well inside the plate
     ps["wipe_tower_x"], ps["wipe_tower_y"] = [str(tx)], [str(ty)]
     return json.dumps(ps, indent=4)

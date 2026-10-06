@@ -47,10 +47,13 @@ all around it.
 - **Orientation**: BACK face down on the plate, front face up and ironed. Layer 1 is nothing but
   small colour islands, and the back has about half as many as the front (41 vs 78), so it is the
   safer face to start on. The back is mirrored in the model so it reads correctly once flipped.
-- **Nothing loose on layer 1**: any colour island narrower than 0.3 mm is merged into the colour
-  around it, a 4 mm brim is added, and the first layer runs at 25 mm/s. Without this the hair-thin
-  slivers (down to 0.1 mm) lift, catch the nozzle and turn the print into spaghetti after a layer
-  or two.
+- **Layer 1 is all small colour islands**, so it gets special treatment:
+  - any island narrower than 0.3 mm is merged into the colour around it (hair-thin slivers lift,
+    catch the nozzle and turn the print into spaghetti after a layer or two);
+  - **elephant-foot compensation is 0**. The stock profile shaves 0.15 mm off every island, which
+    takes a 0.63 mm letter stroke down to 0.33 mm, thinner than one bead, and the text prints
+    malformed. With it off, islands ending under 0.5 mm go from 73% to 9%;
+  - one wall on layer 1, a 4 mm brim, and 25 mm/s.
 - **Slicing**: 0.14 mm layers, 3 walls, ironing on the top (front) surface, purge tower on, purge
   into infill where it fits. The included `.3mf` already sets these.
 - **Waste**: a plate needs 42 filament changes whether it holds one keychain or eleven, so always
