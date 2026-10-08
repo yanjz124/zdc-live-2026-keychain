@@ -475,6 +475,15 @@ def project_settings(colors, tower=None):
     # always lift on travel so the nozzle cannot clip a lifted edge
     ps["z_hop_types"] = ["Normal Lift"] * len(ps["z_hop_types"])
     ps["z_hop"] = ["0.6"] * len(ps["z_hop"])
+    # PLA shrinks as it cools, and the part nearest the side fan lifts first. Hold the cooling off
+    # while the part gets a grip, and anchor it with a wider brim.
+    n = len(ps["close_fan_the_first_x_layers"])
+    ps["close_fan_the_first_x_layers"] = ["4"] * n
+    ps["close_additional_fan_first_x_layers"] = ["6"] * n
+    ps["first_x_layer_fan_speed"] = ["0"] * len(ps["first_x_layer_fan_speed"])
+    ps["additional_cooling_fan_speed"] = ["40"] * len(ps["additional_cooling_fan_speed"])
+    ps["brim_width"] = "8"
+    ps["reduce_crossing_wall"] = "1"   # route travel around parts instead of over them
     tx, ty = tower or (175, 150)   # clear of the keychains, well inside the plate
     ps["wipe_tower_x"], ps["wipe_tower_y"] = [str(tx)], [str(ty)]
     return json.dumps(ps, indent=4)

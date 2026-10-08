@@ -53,7 +53,10 @@ all around it.
   - **elephant-foot compensation is 0**. The stock profile shaves 0.15 mm off every island, which
     takes a 0.63 mm letter stroke down to 0.33 mm, thinner than one bead, and the text prints
     malformed. With it off, islands ending under 0.5 mm go from 73% to 9%;
-  - one wall on layer 1, a 4 mm brim, and 25 mm/s;
+  - one wall on layer 1, an 8 mm brim, and 25 mm/s;
+  - **cooling off while the part takes hold**: the part fan is off for 4 layers and the side fan for
+    6, then capped at 40%. PLA shrinks as it cools, and on a P2S the side fan blows from the left,
+    so the leftmost part on the plate lifts first - for us the ribbon, which is the widest region;
   - **filament order is fixed to black, red, gray, white on every layer**, so the background is down
     before the small text goes in and each text bead is laid against walls that already exist
     (`first_layer_print_sequence` / `other_layers_print_sequence`, the latter with `_nums = 1`);
