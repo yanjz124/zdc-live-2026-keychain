@@ -53,7 +53,15 @@ all around it.
   - **elephant-foot compensation is 0**. The stock profile shaves 0.15 mm off every island, which
     takes a 0.63 mm letter stroke down to 0.33 mm, thinner than one bead, and the text prints
     malformed. With it off, islands ending under 0.5 mm go from 73% to 9%;
-  - one wall on layer 1, a 4 mm brim, and 25 mm/s.
+  - one wall on layer 1, a 4 mm brim, and 25 mm/s;
+  - **filament order is fixed to black, red, gray, white on every layer**, so the background is down
+    before the small text goes in and each text bead is laid against walls that already exist
+    (`first_layer_print_sequence` / `other_layers_print_sequence`, the latter with `_nums = 1`);
+  - **always lift on travel** (`z_hop_types = Normal Lift`, 0.6 mm) so the nozzle cannot clip an edge
+    that has lifted.
+- **No sharp tips on the plate**: the ribbon's swallowtail ends are chamfered. A point there has only
+  18% of the surrounding 1 mm filled, so it curls up and the nozzle eventually catches it, which is
+  what took out a plate halfway through.
 - **Slicing**: 0.10 mm first layer then 0.14 mm, 3 walls, ironing on the top (front) surface, purge
   tower on, purge into infill where it fits. The included `.3mf` already sets these. 0.14 mm is the
   most a 0.2 mm nozzle should do and it keeps the colour boundaries to 3 layers a side; printing the

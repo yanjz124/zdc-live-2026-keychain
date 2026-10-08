@@ -173,11 +173,13 @@ def body_parts():
 
 
 def ribbon_parts():
-    main = unary_union([
-        poly([(0.4, 49.0), (6.5, 49.0), (6.5, 58.2), (0.4, 58.2), (2.6, 53.6)]),
-        poly([(49.6, 49.0), (43.5, 49.0), (43.5, 58.2), (49.6, 58.2), (47.4, 53.6)]),
-        rect(4.2, 47.0, 45.8, 56.4, 0.4),
+    # The swallowtail tips are chamfered: a sharp point there has almost no material holding it to
+    # the plate, so it curls up and the nozzle eventually catches it. The notch stays crisp.
+    wings = unary_union([
+        poly([(1.3, 49.0), (6.5, 49.0), (6.5, 58.2), (1.3, 58.2), (0.4, 56.8), (2.6, 53.6), (0.4, 50.4)]),
+        poly([(48.7, 49.0), (43.5, 49.0), (43.5, 58.2), (48.7, 58.2), (49.6, 56.8), (47.4, 53.6), (49.6, 50.4)]),
     ])
+    main = unary_union([wings, rect(4.2, 47.0, 45.8, 56.4, 0.4)])
     folds = unary_union([poly([(4.2, 56.4), (6.5, 58.2), (6.5, 56.4)]),
                          poly([(45.8, 56.4), (43.5, 58.2), (43.5, 56.4)])])
     return main, folds
@@ -465,6 +467,14 @@ def project_settings(colors, tower=None):
     # the profile shaves 0.15 mm off every island on layer 1, which eats letter strokes
     ps["elefant_foot_compensation"] = "0"
     ps["only_one_wall_first_layer"] = "1"   # one clean bead per thin stroke, not two overlapping
+    # background first, small text last: the text beads land against walls that already exist
+    order = [str(FILAMENT_SLOT[c]) for c in (BLACK, RED, GRAY, WHITE) if c in colors]
+    ps["first_layer_print_sequence"] = order
+    ps["other_layers_print_sequence"] = order
+    ps["other_layers_print_sequence_nums"] = "1"   # one sequence, used on every layer
+    # always lift on travel so the nozzle cannot clip a lifted edge
+    ps["z_hop_types"] = ["Normal Lift"] * len(ps["z_hop_types"])
+    ps["z_hop"] = ["0.6"] * len(ps["z_hop"])
     tx, ty = tower or (175, 150)   # clear of the keychains, well inside the plate
     ps["wipe_tower_x"], ps["wipe_tower_y"] = [str(tx)], [str(ty)]
     return json.dumps(ps, indent=4)

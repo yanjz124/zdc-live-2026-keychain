@@ -303,7 +303,8 @@ def draw(text, cid, rating, out_path, volumes=None):
         "6. Back ribbon is one free text field per attendee; rating and CID optional. See attendees.csv.",
         "7. Dimensions in mm. General tolerance ±0.2 unless noted.",
         "8. Layer 1 carries small colour islands: no island is narrower than 0.3 mm, elephant-foot "
-        "compensation is 0 (it shaved 0.15 mm off every one), one wall on layer 1, brim 4 mm, 25 mm/s.",
+        "compensation is 0, one wall on layer 1, brim 4 mm, 25 mm/s. Filament order on every layer is "
+        "black, red, gray, white, so text is laid against walls that already exist.",
     ]
     for i, n in enumerate(notes):
         sh.text(nx, ny - i * 5.2, n, size=6.3 if i else 7.5, ha="left", weight="bold" if i == 0 else "normal")
