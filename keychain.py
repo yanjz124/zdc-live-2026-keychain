@@ -484,6 +484,10 @@ def project_settings(colors, tower=None):
     ps["additional_cooling_fan_speed"] = ["40"] * len(ps["additional_cooling_fan_speed"])
     ps["brim_width"] = "8"
     ps["reduce_crossing_wall"] = "1"   # route travel around parts instead of over them
+    # name the process for what it is, so the dropdown does not keep reading "0.10mm Standard"
+    parent = ps["print_settings_id"]
+    ps["print_settings_id"] = "0.14mm vZDC keychain @BBL P2S 0.2 nozzle"
+    ps["inherits_group"] = [parent] + [""] * (len(colors) + 1)
     tx, ty = tower or (175, 150)   # clear of the keychains, well inside the plate
     ps["wipe_tower_x"], ps["wipe_tower_y"] = [str(tx)], [str(ty)]
     return json.dumps(ps, indent=4)
