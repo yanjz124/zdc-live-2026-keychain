@@ -19,21 +19,25 @@ GAP = 3.0            # between keychains
 TOWER = 60.0         # space reserved for the purge tower (square)
 
 
-def grid(item_w, item_h, count):
-    """Cells for `count` keychains, rotated 90 degrees so they pack in rows. Returns (cells, tower)."""
+def grid(item_w, item_h, count, skip_rear_left=False):
+    """Cells for `count` keychains, rotated 90 degrees so they pack in rows. Returns (cells, tower, capacity).
+
+    The rear-left cell sits in the strongest airflow from the side fan and is where parts lift, so
+    --skip-rear-left leaves it empty.
+    """
     w, h = item_h + GAP, item_w + GAP          # rotated footprint
     usable = PLATE - 2 * MARGIN
     cols = max(1, int((usable + GAP) // w))
     rows_for_tower = int((usable - TOWER - GAP + GAP) // h)
-    rows = max(1, min(rows_for_tower, math.ceil(count / cols)))
-    cells = []
-    for i in range(min(count, cols * rows)):
-        r, c = divmod(i, cols)
-        cells.append((MARGIN + c * w + item_h / 2, MARGIN + r * h + item_w / 2))
+    rows = max(1, min(rows_for_tower, math.ceil((count + bool(skip_rear_left)) / cols)))
+    spots = [(MARGIN + c * w + item_h / 2, MARGIN + r * h + item_w / 2)
+             for r in range(rows) for c in range(cols)]
+    if skip_rear_left and rows > 1:
+        spots.pop(cols * (rows - 1))           # the rear-left cell
     # wipe_tower_x/y is the tower's centre, so keep a full half-tower clear of the last row
     top = MARGIN + rows * h
     tower = (PLATE / 2, min(top + GAP + TOWER / 2, PLATE - MARGIN - TOWER / 2))
-    return cells, tower, cols * rows
+    return spots[:count], tower, len(spots)
 
 
 def main():
@@ -42,12 +46,19 @@ def main():
     ap.add_argument("--top", default="orb", choices=list(k.TOPS))
     ap.add_argument("--out", default=os.path.join(k.HERE, "out", "plates"))
     ap.add_argument("--per-plate", type=int, default=0, help="cap per plate (default: as many as fit)")
+    ap.add_argument("--names", help="comma-separated names for a one-off plate, instead of --csv")
+    ap.add_argument("--skip-rear-left", action="store_true",
+                    help="leave the rear-left cell empty (strongest airflow, where parts lift)")
     args = ap.parse_args()
 
     k.set_top(args.top)
-    with open(args.csv, newline="", encoding="utf-8-sig") as fh:
-        rows = [{(a or "").strip().lower(): (b or "").strip() for a, b in r.items()} for r in csv.DictReader(fh)]
-    rows = [r for r in rows if r.get("text")]
+    if args.names:
+        rows = [{"text": n.strip()} for n in args.names.split(",") if n.strip()]
+    else:
+        with open(args.csv, newline="", encoding="utf-8-sig") as fh:
+            rows = [{(a or "").strip().lower(): (b or "").strip() for a, b in r.items()}
+                    for r in csv.DictReader(fh)]
+        rows = [r for r in rows if r.get("text")]
 
     groups = {}
     for r in rows:
@@ -65,13 +76,13 @@ def main():
         item_w = max(w for _, _, w, _ in built)
         item_h = max(h for _, _, _, h in built)
         # balance the group over as few plates as possible
-        _, _, capacity = grid(item_w, item_h, len(built))
+        _, _, capacity = grid(item_w, item_h, len(built), args.skip_rear_left)
         cap = args.per_plate or capacity
         n_plates = math.ceil(len(built) / cap)
         per = math.ceil(len(built) / n_plates)
         for start in range(0, len(built), per):
             entries = [(t, s, h) for t, s, _, h in built[start:start + per]]
-            cells, tower, _ = grid(item_w, item_h, len(entries))
+            cells, tower, _ = grid(item_w, item_h, len(entries), args.skip_rear_left)
             plate_no += 1
             name = f"plate_{plate_no}" + (f"_{gname.lower().replace(' ', '_')}" if gname else "")
             path = os.path.join(args.out, f"{name}.3mf")

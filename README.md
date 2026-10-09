@@ -114,6 +114,17 @@ CARSON BERGET,,,going
 ROWAN A YOUNG,,,tentative
 ```
 
+For a one-off plate, skip the CSV:
+
+```bash
+python plates.py --names "KYLE TAM,JUNZHE YAN,CARSON BERGET"
+python plates.py --csv roster.csv --skip-rear-left        # leave the windiest cell empty
+python plates.py --csv roster.csv --per-plate 10          # cap how many go on a plate
+```
+
+`--skip-rear-left` leaves the rear-left cell unused. It sits in the strongest airflow from the side
+fan and is where a part lifts if one is going to, so it is worth giving up a slot on a long plate.
+
 ### Drawings and renders
 
 ```bash
