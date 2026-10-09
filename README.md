@@ -137,6 +137,30 @@ python render.py out/carson_b_cb_1652726_orb --all
 dimensioned views, a section through the hole, the layer stack, and a filament table. `render.py`
 writes the renders in `docs/`.
 
+## Editing a plate in Bambu Studio
+
+Open the `.3mf` and edit it, then **Save project as**. Do not build a new project and import the
+geometry into it: the print settings do not come along, everything reverts to the stock profile
+(0.15 mm elephant foot, no ironing, 5 mm auto brim, fans on from layer 2, default filament order)
+and the prints fail exactly as they did before those were fixed. If it happens anyway, either rerun
+`plates.py`, or copy `Metadata/project_settings.config` from a known-good `.3mf` into the edited one
+and keep the edited file's `wipe_tower_x` / `wipe_tower_y`.
+
+## Working on another machine
+
+Nothing generated needs to travel; `out/` is about 190 MB and rebuilds in two minutes.
+
+```bash
+git clone https://github.com/yanjz124/zdc-live-2026-keychain
+cd zdc-live-2026-keychain
+pip install shapely manifold3d numpy fonttools matplotlib     # pyvista too, for render.py
+python keychain.py --csv roster.csv --top orb --preview       # per-person files
+python plates.py  --csv roster.csv --top orb                  # print plates
+```
+
+The roster is the only thing the repo does not carry, because it holds real attendee names. Copy
+your `*.local.csv` across by hand (USB, password manager, private message) and it stays out of git.
+
 ## Files
 
 | Path | What it is |
