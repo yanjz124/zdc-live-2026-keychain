@@ -98,6 +98,8 @@ def main():
     ap.add_argument("--out", default=os.path.join(k.HERE, "out", "plates"))
     ap.add_argument("--per-plate", type=int, default=0, help="cap per plate (default: as many as fit)")
     ap.add_argument("--names", help="comma-separated names for a one-off plate, instead of --csv")
+    ap.add_argument("--blanks", type=int, default=0,
+                    help="add this many keychains with an empty ribbon, for spares")
     ap.add_argument("--arrange", action="store_true",
                     help="let Bambu Studio pack the plate (fits more than the plain grid)")
     ap.add_argument("--skip-rear-left", action="store_true",
@@ -112,6 +114,7 @@ def main():
             rows = [{(a or "").strip().lower(): (b or "").strip() for a, b in r.items()}
                     for r in csv.DictReader(fh)]
         rows = [r for r in rows if r.get("text")]
+    rows += [{"text": "", "title": f"blank {i + 1}"} for i in range(args.blanks)]
 
     groups = {}
     for r in rows:
@@ -127,7 +130,7 @@ def main():
             solids, _, _, outline = k.solids_for(fonts, r["text"], r.get("cid", ""), r.get("rating", ""))
             outline_shape = outline
             x0, y0, x1, y1 = outline.bounds
-            built.append((r["text"], solids, x1 - x0, y1 - y0))
+            built.append((r.get("title") or r["text"], solids, x1 - x0, y1 - y0))
         item_w = max(w for _, _, w, _ in built)
         item_h = max(h for _, _, _, h in built)
         # balance the group over as few plates as possible

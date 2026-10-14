@@ -118,6 +118,7 @@ For a one-off plate, skip the CSV:
 
 ```bash
 python plates.py --names "KYLE TAM,JUNZHE YAN,CARSON BERGET"
+python plates.py --names "KYLE TAM" --blanks 8            # plus spares with an empty ribbon
 python plates.py --csv roster.csv --skip-rear-left        # leave the windiest cell empty
 python plates.py --csv roster.csv --per-plate 10          # cap how many go on a plate
 ```
